@@ -4,6 +4,7 @@ import java.io.*;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.*;
+import java.util.*;
 
 import com.google.transit.realtime.GtfsRealtime.FeedEntity;
 import com.google.transit.realtime.GtfsRealtime.FeedMessage;
@@ -15,61 +16,62 @@ public class App
     public static void main( String[] args ) throws Exception
     {
         boolean run = true;
+        long start = System.currentTimeMillis( );
         while(run) {
-            URL url = new URL("http://developers.cata.org/gtfsrt/vehicle/vehiclepositions.pb");
-            FeedMessage feed = FeedMessage.parseFrom(url.openStream());
-            
-            
-            //////////////////////////////////////////////////////////////
-            //
-            // Gets the execution time
-            //
-            //////////////////////////////////////////////////////////////
-            long timestamp = feed.getHeader().getTimestamp();
-            firebaseCall("https://sizzling-fire-5776.firebaseio.com/timestamp.json?auth=6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE","PUT",String.valueOf(timestamp));
-            
-            System.out.println("Updating");
-            
-            //////////////////////////////////////////////////////////////
-            //
-            // Deletes all vehicles, to refresh and remove buses that
-            // stopped running
-            //
-            //////////////////////////////////////////////////////////////
-            firebaseCall("https://sizzling-fire-5776.firebaseio.com/vehicles.json?auth=6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE","DELETE","");
-            
-            //////////////////////////////////////////////////////////////
-            //
-            // Updates buses in firebase
-            //
-            //////////////////////////////////////////////////////////////            
-            String vehicleUpdateStr = "{ ";
-            for (FeedEntity entity : feed.getEntityList()) {
-                            
-                String id = entity.getId();
-                String tripId = entity.getVehicle().getTrip().getTripId();
-                float latitude = entity.getVehicle().getPosition().getLatitude();
-                float longitude = entity.getVehicle().getPosition().getLongitude();
-                long vehicle_timestamp = entity.getVehicle().getTimestamp();
-            
-                String vehicle = "\"" + id + "\" : { \"Trip\": \"" + tripId +"\", \"lat\": \""+ Float.toString(latitude) + "\", \"long\": \"" + Float.toString(longitude) + "\", \"timestamp\": \"" + Long.toString(vehicle_timestamp) + "\" },";
-                //System.out.println(vehicle);
-                vehicleUpdateStr += vehicle;
-                            
-            }
-            vehicleUpdateStr += " }";
-            vehicleUpdateStr = vehicleUpdateStr.replaceAll(", }", " }");
-            firebaseCall("https://sizzling-fire-5776.firebaseio.com/vehicles.json?auth=6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE","PUT", vehicleUpdateStr);
-            
-            //////////////////////////////////////////////////////////////
-            //
-            // Wait before updating, according to aggrement
-            //
-            //////////////////////////////////////////////////////////////
-            try {
-                Thread.sleep(15000);                 //1000 milliseconds is one second.
-            } catch(InterruptedException ex) {
-                //Thread.currentThread().interrupt();
+            if((System.currentTimeMillis( ) - start) >= 15000 ) {
+                start = System.currentTimeMillis( );
+                System.out.println("Updating");
+                
+                //////////////////////////////////////////////////////////////
+                //
+                // Get the feeds for buses and routes
+                //
+                //////////////////////////////////////////////////////////////
+                URL vehiclesPB = new URL("http://developers.cata.org/gtfsrt/vehicle/vehiclepositions.pb");
+                FeedMessage feed = FeedMessage.parseFrom(vehiclesPB.openStream());
+                
+                URL tripsPB = new URL("http://developers.cata.org/gtfsrt/tripupdate/tripupdates.pb");
+                FeedMessage tripsFeed = FeedMessage.parseFrom(vehiclesPB.openStream());
+                
+                
+                //////////////////////////////////////////////////////////////
+                //
+                // Gets the execution time
+                //
+                //////////////////////////////////////////////////////////////
+                long timestamp = feed.getHeader().getTimestamp();
+                firebaseCall("https://sizzling-fire-5776.firebaseio.com/timestamp.json?auth=6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE","PUT",String.valueOf(timestamp));
+                
+                //////////////////////////////////////////////////////////////
+                //
+                // Deletes all vehicles, to refresh and remove buses that
+                // stopped running
+                //
+                //////////////////////////////////////////////////////////////
+                firebaseCall("https://sizzling-fire-5776.firebaseio.com/vehicles.json?auth=6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE","DELETE","");
+                
+                //////////////////////////////////////////////////////////////
+                //
+                // Updates buses in firebase
+                //
+                //////////////////////////////////////////////////////////////            
+                String vehicleUpdateStr = "{ ";
+                for (FeedEntity entity : feed.getEntityList()) {
+                                
+                    String id = entity.getId();
+                    String tripId = entity.getVehicle().getTrip().getTripId();
+                    float latitude = entity.getVehicle().getPosition().getLatitude();
+                    float longitude = entity.getVehicle().getPosition().getLongitude();
+                    long vehicle_timestamp = entity.getVehicle().getTimestamp();
+                
+                    String vehicle = "\"" + id + "\" : { \"Trip\": \"" + tripId +"\", \"lat\": \""+ Float.toString(latitude) + "\", \"long\": \"" + Float.toString(longitude) + "\", \"timestamp\": \"" + Long.toString(vehicle_timestamp) + "\" },";
+                    //System.out.println(vehicle);
+                    vehicleUpdateStr += vehicle;
+                                
+                }
+                vehicleUpdateStr += " }";
+                vehicleUpdateStr = vehicleUpdateStr.replaceAll(", }", " }");
+                firebaseCall("https://sizzling-fire-5776.firebaseio.com/vehicles.json?auth=6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE","PUT", vehicleUpdateStr);
             }
         }
     }
