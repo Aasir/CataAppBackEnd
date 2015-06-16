@@ -1,0 +1,51 @@
+1 {
+  1: "1.0"
+  3: 1433875637
+}
+2 {
+  1: "518"
+  4 {
+    1 {
+      1: "2485217"
+    }
+    2 {
+      1: 0x422adbd5
+      2: 0xc2a934b7
+    }
+    5: 1433875628
+    8 {
+      2: "518"
+    }
+  }
+}
+
+
+FeedHeader {
+  required string gtfs_realtime_version: "1.0"
+  optional uint64 timestamp: 1433875637
+}
+FeedEntity {
+  required string id: "518"
+  optional VehiclePosition vehicle {
+    optional TripDescriptor trip {
+      optional string trip_id: "2485217"
+    }
+    optional Position position {
+      required float latitude: 0x422adbd5
+      required float longitude: 0xc2a934b7
+    }
+    optional uint64 timestamp: 1433875628
+    optional VehicleDescriptor vehicle {
+      optional string label: "518"
+    }
+  }
+}
+
+{
+  id: {
+    trip:
+    lat:
+    long:
+    timestamp:
+  }
+}
