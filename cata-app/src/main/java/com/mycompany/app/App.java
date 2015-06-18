@@ -95,8 +95,9 @@ public class App
                         String stopNumber = String.valueOf(item.getStopSequence());
                         String delay = Integer.toString(item.getDeparture().getDelay());
                         String time = Long.toString(item.getDeparture().getTime());
+                        String stopId = item.getStopId();
                         
-                        String stop = "\"" + stopNumber + "\" : { \"Delay\": \"" + delay +"\", \"Time\": \""+ time + "\"}, ";
+                        String stop = "\"" + stopNumber + "\" : { \"Delay\": \"" + delay +"\", \"Time\": \""+ time + "\", \"StopId\": \"" + stopId + "\"}, ";
                         stopsListStr += stop;
                     }
                     route += stopsListStr;
