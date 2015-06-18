@@ -18,7 +18,7 @@ public class App
         boolean run = true;
         long start = System.currentTimeMillis( );
         while(run) {
-            if((System.currentTimeMillis( ) - start) >= 15000 ) {
+            if((System.currentTimeMillis( ) - start) >= 000 ) {
                 start = System.currentTimeMillis( );
                 System.out.println("Updating");
                 
@@ -31,7 +31,7 @@ public class App
                 FeedMessage feed = FeedMessage.parseFrom(vehiclesPB.openStream());
                 
                 URL tripsPB = new URL("http://developers.cata.org/gtfsrt/tripupdate/tripupdates.pb");
-                FeedMessage tripsFeed = FeedMessage.parseFrom(vehiclesPB.openStream());
+                FeedMessage tripsFeed = FeedMessage.parseFrom(tripsPB.openStream());
                 
                 
                 //////////////////////////////////////////////////////////////
@@ -72,7 +72,54 @@ public class App
                 vehicleUpdateStr += " }";
                 vehicleUpdateStr = vehicleUpdateStr.replaceAll(", }", " }");
                 firebaseCall("https://sizzling-fire-5776.firebaseio.com/vehicles.json?auth=6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE","PUT", vehicleUpdateStr);
+                
+                //////////////////////////////////////////////////////////////
+                //
+                // Updates routes into firebase
+                //
+                //////////////////////////////////////////////////////////////
+                String stopUpdateStr = "{ ";
+                for (FeedEntity entity : tripsFeed.getEntityList()) {
+                                
+                    String id = entity.getId();
+                    String tripId = entity.getTripUpdate().getTrip().getTripId();
+                    String tripStartTime = entity.getTripUpdate().getTrip().getStartTime();
+                    String tripStartDate = entity.getTripUpdate().getTrip().getStartDate();
+                    String tripRoute = entity.getTripUpdate().getTrip().getRouteId();
+                    String vehicleId = entity.getTripUpdate().getVehicle().getId();
+                    
+                    String route = "\"" + id + "\" : { \"StartTime\": \"" + tripStartTime +"\", \"StartDate\": \""+ tripStartDate + "\", \"RouteNumber\": \"" + tripRoute + "\", \"BusNumber\": \"" + vehicleId + "\", \"Stops\": {"; 
+
+                    String stopsListStr = "";
+                    for (com.google.transit.realtime.GtfsRealtime.TripUpdate.StopTimeUpdate item : entity.getTripUpdate().getStopTimeUpdateList()) {
+                        String stopNumber = String.valueOf(item.getStopSequence());
+                        String delay = Integer.toString(item.getDeparture().getDelay());
+                        String time = Long.toString(item.getDeparture().getTime());
+                        
+                        String stop = "\"" + stopNumber + "\" : { \"Delay\": \"" + delay +"\", \"Time\": \""+ time + "\"}, ";
+                        stopsListStr += stop;
+                    }
+                    route += stopsListStr;
+                    route += " } }, ";
+                    stopUpdateStr += route;
+                    
+                    
+                    
+
+                    
+                    //float latitude = entity.getVehicle().getPosition().getLatitude();
+                    //float longitude = entity.getVehicle().getPosition().getLongitude();
+                    //long vehicle_timestamp = entity.getVehicle().getTimestamp();
+                                
+                }
+                stopUpdateStr += " }";
+                stopUpdateStr = stopUpdateStr.replaceAll(",  }", " }");
+                System.out.println(stopUpdateStr);
+                firebaseCall("https://sizzling-fire-5776.firebaseio.com/routes.json?auth=6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE","PUT", stopUpdateStr);
+                
+                
             }
+            run = false;
         }
     }
     
