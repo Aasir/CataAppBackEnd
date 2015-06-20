@@ -16,7 +16,7 @@ import com.google.transit.realtime.GtfsRealtime.*;
 
 public class App 
 {
-    static String auth = "";
+    static String auth = "6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE";
     static String ftpUrl = "";
     public static void main( String[] args ) throws Exception
     {
@@ -27,7 +27,7 @@ public class App
             if((System.currentTimeMillis( ) - start) >= (60*60*24*7) ) {
                 updateGtfs();
             }
-            if((System.currentTimeMillis( ) - start) >= 10000 ) {
+            if((System.currentTimeMillis( ) - start) >= 30000 ) {
                 start = System.currentTimeMillis( );
                 System.out.println("Updating");
                 
@@ -81,6 +81,13 @@ public class App
                 vehicleUpdateStr += " }";
                 vehicleUpdateStr = vehicleUpdateStr.replaceAll(", }", " }");
                 firebaseCall("https://sizzling-fire-5776.firebaseio.com/vehicles.json?auth="+auth,"PUT", vehicleUpdateStr);
+                
+                //////////////////////////////////////////////////////////////
+                //
+                // Deletes all routes
+                //
+                //////////////////////////////////////////////////////////////
+                firebaseCall("https://sizzling-fire-5776.firebaseio.com/routes.json?auth="+auth,"DELETE","");
                 
                 //////////////////////////////////////////////////////////////
                 //
