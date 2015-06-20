@@ -16,9 +16,10 @@ import com.google.transit.realtime.GtfsRealtime.*;
 
 public class App 
 {
+    static String auth = "";
+    static String ftpUrl = "";
     public static void main( String[] args ) throws Exception
     {
-        String auth = "6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE";
         boolean run = true;
         long start = System.currentTimeMillis( );
         updateGtfs();
@@ -26,7 +27,7 @@ public class App
             if((System.currentTimeMillis( ) - start) >= (60*60*24*7) ) {
                 updateGtfs();
             }
-            if((System.currentTimeMillis( ) - start) >= 0000 ) {
+            if((System.currentTimeMillis( ) - start) >= 10000 ) {
                 start = System.currentTimeMillis( );
                 System.out.println("Updating");
                 
@@ -48,7 +49,7 @@ public class App
                 //
                 //////////////////////////////////////////////////////////////
                 long timestamp = feed.getHeader().getTimestamp();
-                firebaseCall("https://sizzling-fire-5776.firebaseio.com/timestamp.json?auth=6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE","PUT",String.valueOf(timestamp));
+                firebaseCall("https://sizzling-fire-5776.firebaseio.com/timestamp.json?auth="+auth,"PUT",String.valueOf(timestamp));
                 
                 //////////////////////////////////////////////////////////////
                 //
@@ -56,7 +57,7 @@ public class App
                 // stopped running
                 //
                 //////////////////////////////////////////////////////////////
-                firebaseCall("https://sizzling-fire-5776.firebaseio.com/vehicles.json?auth=6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE","DELETE","");
+                firebaseCall("https://sizzling-fire-5776.firebaseio.com/vehicles.json?auth="+auth,"DELETE","");
                 
                 //////////////////////////////////////////////////////////////
                 //
@@ -72,14 +73,14 @@ public class App
                     float longitude = entity.getVehicle().getPosition().getLongitude();
                     long vehicle_timestamp = entity.getVehicle().getTimestamp();
                 
-                    String vehicle = "\"" + id + "\" : { \"Trip\": \"" + tripId +"\", \"lat\": \""+ Float.toString(latitude) + "\", \"long\": \"" + Float.toString(longitude) + "\", \"timestamp\": \"" + Long.toString(vehicle_timestamp) + "\" },";
+                    String vehicle = "\"" + id + "\" : { \"Trip\": \"" + tripId +"\", \"Lat\": \""+ Float.toString(latitude) + "\", \"Long\": \"" + Float.toString(longitude) + "\", \"Timestamp\": \"" + Long.toString(vehicle_timestamp) + "\" },";
                     //System.out.println(vehicle);
                     vehicleUpdateStr += vehicle;
                                 
                 }
                 vehicleUpdateStr += " }";
                 vehicleUpdateStr = vehicleUpdateStr.replaceAll(", }", " }");
-                firebaseCall("https://sizzling-fire-5776.firebaseio.com/vehicles.json?auth=6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE","PUT", vehicleUpdateStr);
+                firebaseCall("https://sizzling-fire-5776.firebaseio.com/vehicles.json?auth="+auth,"PUT", vehicleUpdateStr);
                 
                 //////////////////////////////////////////////////////////////
                 //
@@ -114,17 +115,16 @@ public class App
                 }
                 stopUpdateStr += " }";
                 stopUpdateStr = stopUpdateStr.replaceAll(",  }", " }");
-                firebaseCall("https://sizzling-fire-5776.firebaseio.com/routes.json?auth=6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE","PUT", stopUpdateStr);
-                
-                
+                firebaseCall("https://sizzling-fire-5776.firebaseio.com/routes.json?auth="+auth,"PUT", stopUpdateStr); 
             }
-            run = false;
+            //run = false;
         }
     }
     
     public static void updateGtfs() {
+        firebaseCall("https://sizzling-fire-5776.firebaseio.com/stops.json?auth="+auth,"DELETE","");
+        String stops = "";
 		try {
-			String ftpUrl = "";
 			String saveFile = "../gtfs.zip";
 			URL url = new URL(ftpUrl);
 			 
@@ -148,7 +148,7 @@ public class App
                         } catch (IOException e) {
                             
                         }
-                        System.out.println(dataStr);
+                        stops = dataStr.toString();
                     }
                 }
             } catch(Exception e) {
@@ -157,6 +157,30 @@ public class App
 		} catch(Exception e) {
 			
 		}
+        
+        BufferedReader reader = new BufferedReader(new StringReader(stops));
+        String line = "";
+        String stopsStr = "{ ";
+        try {
+            while((line = reader.readLine()) != null) {
+                String[] stringArray = line.split(",");
+                String latitude = stringArray[0];
+                String longitude = stringArray[3];
+                String name = stringArray[2];
+                String streets = stringArray[7];
+                String short_description = stringArray[8];
+                
+                String singleStop = "\"" + name + "\" : { \"Latitude\": \"" + latitude +"\", \"Longitude\": \""+ longitude + "\", \"Streets\": \"" + streets + "\", \"Description\": \"" + short_description + "\" },";
+                stopsStr += singleStop;
+                
+            }
+        } catch(IOException e) {
+            
+        }
+        stopsStr += " }";
+        stopsStr = stopsStr.replaceAll(", }", " }");
+        firebaseCall("https://sizzling-fire-5776.firebaseio.com/stops.json?auth="+auth,"PUT", stopsStr);
+        
     }
     
     public static void firebaseCall(String _url,String _method,String _data) {
