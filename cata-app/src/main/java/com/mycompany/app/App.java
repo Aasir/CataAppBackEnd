@@ -5,6 +5,9 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.net.*;
 import java.util.*;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import com.google.transit.realtime.GtfsRealtime.FeedEntity;
 import com.google.transit.realtime.GtfsRealtime.FeedMessage;
@@ -15,10 +18,15 @@ public class App
 {
     public static void main( String[] args ) throws Exception
     {
+        String auth = "6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE";
         boolean run = true;
         long start = System.currentTimeMillis( );
+        updateGtfs();
         while(run) {
-            if((System.currentTimeMillis( ) - start) >= 000 ) {
+            if((System.currentTimeMillis( ) - start) >= (60*60*24*7) ) {
+                updateGtfs();
+            }
+            if((System.currentTimeMillis( ) - start) >= 0000 ) {
                 start = System.currentTimeMillis( );
                 System.out.println("Updating");
                 
@@ -102,26 +110,53 @@ public class App
                     }
                     route += stopsListStr;
                     route += " } }, ";
-                    stopUpdateStr += route;
-                    
-                    
-                    
-
-                    
-                    //float latitude = entity.getVehicle().getPosition().getLatitude();
-                    //float longitude = entity.getVehicle().getPosition().getLongitude();
-                    //long vehicle_timestamp = entity.getVehicle().getTimestamp();
-                                
+                    stopUpdateStr += route;  
                 }
                 stopUpdateStr += " }";
                 stopUpdateStr = stopUpdateStr.replaceAll(",  }", " }");
-                System.out.println(stopUpdateStr);
                 firebaseCall("https://sizzling-fire-5776.firebaseio.com/routes.json?auth=6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE","PUT", stopUpdateStr);
                 
                 
             }
             run = false;
         }
+    }
+    
+    public static void updateGtfs() {
+		try {
+			String ftpUrl = "";
+			String saveFile = "../gtfs.zip";
+			URL url = new URL(ftpUrl);
+			 
+			URLConnection conn = url.openConnection();
+			InputStream inputStream = conn.getInputStream();
+            
+            ZipInputStream zipStream = new ZipInputStream(inputStream);
+            			
+			try {
+                ZipEntry entry;
+                while((entry = zipStream.getNextEntry())!=null) {
+                    if(entry.getName().equals("stops.txt")) {
+                        
+                        StringBuilder dataStr = new StringBuilder();
+                        int bytesRead;
+                        byte[] tempBuffer = new byte[2048];
+                        try {
+                            while ((bytesRead = zipStream.read(tempBuffer)) != -1) {
+                                dataStr.append(new String(tempBuffer, 0, bytesRead));
+                            }
+                        } catch (IOException e) {
+                            
+                        }
+                        System.out.println(dataStr);
+                    }
+                }
+            } catch(Exception e) {
+                
+            }
+		} catch(Exception e) {
+			
+		}
     }
     
     public static void firebaseCall(String _url,String _method,String _data) {
