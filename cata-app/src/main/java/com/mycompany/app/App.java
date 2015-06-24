@@ -14,9 +14,8 @@ import com.google.transit.realtime.GtfsRealtime.FeedMessage;
 import com.google.transit.realtime.GtfsRealtime.VehiclePosition;
 import com.google.transit.realtime.GtfsRealtime.*;
 
-public class App 
-{
-    static String auth = "6whGHpWI2HxG1chn1ar82m0eG2303MzLDQdDMHoE";
+public class App {
+    static String auth = "";
     static String ftpUrl = "";
     public static void main( String[] args ) throws Exception
     {
@@ -131,6 +130,7 @@ public class App
     public static void updateGtfs() {
         firebaseCall("https://sizzling-fire-5776.firebaseio.com/stops.json?auth="+auth,"DELETE","");
         String stops = "";
+		String stopTimes = "";
 		try {
 			String saveFile = "../gtfs.zip";
 			URL url = new URL(ftpUrl);
@@ -156,6 +156,23 @@ public class App
                             
                         }
                         stops = dataStr.toString();
+                    }
+					if(entry.getName().equals("stop_timesWAIT.txt")) {
+                        
+                        StringBuilder stopTimesStr = new StringBuilder();
+                        int bytesRead;
+                        byte[] tempBuffer = new byte[2048];
+						
+                        try {
+                            while ((bytesRead = zipStream.read(tempBuffer)) != -1) {
+                                stopTimesStr.append(new String(tempBuffer, 0, bytesRead));
+                            }
+                        } catch (IOException e) {
+                            
+                        }
+                        stopTimes = stopTimesStr.toString();
+						System.out.println("Here");
+						System.out.println(stopTimes);
                     }
                 }
             } catch(Exception e) {
@@ -186,7 +203,7 @@ public class App
         }
         stopsStr += " }";
         stopsStr = stopsStr.replaceAll(", }", " }");
-        firebaseCall("https://sizzling-fire-5776.firebaseio.com/stops.json?auth="+auth,"PUT", stopsStr);
+        firebaseCall("https://sizzling-fire-5776.firebaseio.com/stop_locations.json?auth="+auth,"PUT", stopsStr);
         
     }
     
