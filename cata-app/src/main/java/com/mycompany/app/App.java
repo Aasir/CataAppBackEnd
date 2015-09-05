@@ -23,30 +23,31 @@ public class App {
         long start = System.currentTimeMillis( );
         updateGtfs();
         while(run) {
-            if((System.currentTimeMillis( ) - start) >= (60*60*24*7) ) {
+            if((System.currentTimeMillis( ) - start) >= (1000*60*60*24*7) ) {
                 updateGtfs();
             }
-            if((System.currentTimeMillis( ) - start) >= 30000 ) {
+            if((System.currentTimeMillis( ) - start) >= (1000*30)) {
+                System.out.println("Starting main loop");
                 start = System.currentTimeMillis( );
-                System.out.println("Updating");
                 
                 //////////////////////////////////////////////////////////////
                 //
                 // Get the feeds for buses and routes
                 //
                 //////////////////////////////////////////////////////////////
+                System.out.println("  Getting Feeds");
                 URL vehiclesPB = new URL("http://developers.cata.org/gtfsrt/vehicle/vehiclepositions.pb");
                 FeedMessage feed = FeedMessage.parseFrom(vehiclesPB.openStream());
                 
                 URL tripsPB = new URL("http://developers.cata.org/gtfsrt/tripupdate/tripupdates.pb");
                 FeedMessage tripsFeed = FeedMessage.parseFrom(tripsPB.openStream());
                 
-                
                 //////////////////////////////////////////////////////////////
                 //
                 // Gets the execution time
                 //
                 //////////////////////////////////////////////////////////////
+                System.out.println("  Getting timestamp");
                 long timestamp = feed.getHeader().getTimestamp();
                 firebaseCall("https://sizzling-fire-5776.firebaseio.com/timestamp.json?auth="+auth,"PUT",String.valueOf(timestamp));
                 
@@ -56,13 +57,15 @@ public class App {
                 // stopped running
                 //
                 //////////////////////////////////////////////////////////////
+                System.out.println("  Deleting vehicles");
                 firebaseCall("https://sizzling-fire-5776.firebaseio.com/vehicles.json?auth="+auth,"DELETE","");
                 
                 //////////////////////////////////////////////////////////////
                 //
                 // Updates buses in firebase
                 //
-                //////////////////////////////////////////////////////////////            
+                //////////////////////////////////////////////////////////////
+                System.out.println("  Updating vehicles");
                 String vehicleUpdateStr = "{ ";
                 for (FeedEntity entity : feed.getEntityList()) {
                                 
@@ -86,6 +89,7 @@ public class App {
                 // Deletes all routes
                 //
                 //////////////////////////////////////////////////////////////
+                System.out.println("  Deleting routes");
                 firebaseCall("https://sizzling-fire-5776.firebaseio.com/routes.json?auth="+auth,"DELETE","");
                 
                 //////////////////////////////////////////////////////////////
@@ -93,6 +97,7 @@ public class App {
                 // Updates routes into firebase
                 //
                 //////////////////////////////////////////////////////////////
+                System.out.println("  Updating routes");
                 String stopUpdateStr = "{ ";
                 for (FeedEntity entity : tripsFeed.getEntityList()) {
                                 
@@ -119,6 +124,7 @@ public class App {
                     route += " } }, ";
                     stopUpdateStr += route;  
                 }
+                System.out.println("    Finished building full route string");
                 stopUpdateStr += " }";
                 stopUpdateStr = stopUpdateStr.replaceAll(",  }", " }");
                 firebaseCall("https://sizzling-fire-5776.firebaseio.com/routes.json?auth="+auth,"PUT", stopUpdateStr); 
@@ -127,9 +133,12 @@ public class App {
         }
     }
     
-    public static void updateGtfs() {
-        firebaseCall("https://sizzling-fire-5776.firebaseio.com/stops.json?auth="+auth,"DELETE","");
+    public static void updateGtfs() throws Exception {
+        System.out.println("Entering GTFS loop");
+        firebaseCall("https://sizzling-fire-5776.firebaseio.com/stop_locations.json?auth="+auth,"DELETE","");
+        firebaseCall("https://sizzling-fire-5776.firebaseio.com/route_id.json?auth="+auth,"DELETE", "");
         String stops = "";
+        String routeNumbers = "";
 		String stopTimes = "";
 		try {
 			String saveFile = "../gtfs.zip";
@@ -174,6 +183,20 @@ public class App {
 						System.out.println("Here");
 						System.out.println(stopTimes);
                     }
+                    if(entry.getName().equals("routes.txt")) {
+                        
+                        StringBuilder dataStr = new StringBuilder();
+                        int bytesRead;
+                        byte[] tempBuffer = new byte[2048];
+                        try {
+                            while ((bytesRead = zipStream.read(tempBuffer)) != -1) {
+                                dataStr.append(new String(tempBuffer, 0, bytesRead));
+                            }
+                        } catch (IOException e) {
+                            
+                        }
+                        routeNumbers = dataStr.toString();
+                    }
                 }
             } catch(Exception e) {
                 
@@ -182,10 +205,24 @@ public class App {
 			
 		}
         
-        BufferedReader reader = new BufferedReader(new StringReader(stops));
-        String line = "";
+        
+        //////////////////////////////////////////////////////////////
+        //
+        // REUSED VARIABLES
+        //
+        //////////////////////////////////////////////////////////////
+        String line;
+        BufferedReader reader;
+        //////////////////////////////////////////////////////////////
+        //
+        // BASED ON STOPS STRING MADE ABOVE, BUILD STOPS LOCATIONS
+        //
+        //////////////////////////////////////////////////////////////
+        reader = new BufferedReader(new StringReader(stops));
+        line = "";
         String stopsStr = "{ ";
         try {
+            reader.readLine();
             while((line = reader.readLine()) != null) {
                 String[] stringArray = line.split(",");
                 String latitude = stringArray[0];
@@ -205,6 +242,44 @@ public class App {
         stopsStr = stopsStr.replaceAll(", }", " }");
         firebaseCall("https://sizzling-fire-5776.firebaseio.com/stop_locations.json?auth="+auth,"PUT", stopsStr);
         
+        //////////////////////////////////////////////////////////////
+        //
+        // BASED ON ROUTES STRING MADE ABOVE, BUILD ROUTE ID
+        //
+        //////////////////////////////////////////////////////////////
+        reader = new BufferedReader(new StringReader(routeNumbers));
+        line = "";
+        String routesNumberStr = "{ ";
+        try {
+            reader.readLine();
+            while((line = reader.readLine()) != null) {
+                String[] stringArray = line.split(",");
+                String route_id = stringArray[5];
+                String route_number = stringArray[8];
+                
+                String singleNumber = "\"" + route_id + "\" : {\"RouteNumber\": \"" + route_number +"\"},";
+                routesNumberStr += singleNumber;
+            }
+
+        } catch(IOException e) {
+            
+        }
+        routesNumberStr += " }";
+        routesNumberStr = routesNumberStr.replaceAll(", }", " }");
+        //System.out.println(routesNumberStr);
+        firebaseCall("https://sizzling-fire-5776.firebaseio.com/route_id.json?auth="+auth,"PUT", routesNumberStr);
+        
+		//Sync app with cata updates
+		URL vehiclesPB = new URL("http://developers.cata.org/gtfsrt/vehicle/vehiclepositions.pb");
+        FeedMessage feed = FeedMessage.parseFrom(vehiclesPB.openStream());
+		
+		long sync = feed.getHeader().getTimestamp();
+        while(FeedMessage.parseFrom(vehiclesPB.openStream()).getHeader().getTimestamp() == sync) {
+			System.out.println("Not synced");
+			Thread.sleep(1000);
+		}
+		
+        System.out.println("Exiting GTFS loop");
     }
     
     public static void firebaseCall(String _url,String _method,String _data) {
@@ -223,7 +298,8 @@ public class App {
             OutputStream out = conn.getOutputStream();
             out.write(data);
             out.close();
-            int responseCode = conn.getResponseCode(); 
+            int responseCode = conn.getResponseCode();
+            //System.out.println(responseCode);
         } catch(Exception e) {
             System.out.println("exception");
         }
